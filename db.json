@@ -1,0 +1,278 @@
+{
+  "events": [
+    {
+      "id": "1",
+      "title": "React Conference 2026",
+      "description": "The premier annual gathering for React developers. Dive deep into the latest features, best practices, and the future of React. Featuring world-class speakers, hands-on workshops, and unparalleled networking opportunities with the global React community.",
+      "category": "Technology",
+      "date": "2026-07-15",
+      "time": "09:00 AM",
+      "location": "San Francisco, CA",
+      "venue": "Moscone Convention Center",
+      "image": "https://picsum.photos/seed/react/800/400",
+      "organizerName": "Tech Events Inc",
+      "organizerEmail": "contact@techevents.com",
+      "ticketTypes": [
+        {
+          "id": "t1",
+          "name": "General",
+          "price": 99,
+          "available": 100
+        },
+        {
+          "id": "t2",
+          "name": "VIP",
+          "price": 299,
+          "available": 20
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "title": "Jazz & Blues Festival",
+      "description": "Three days of soul-stirring jazz and blues performances in the heart of New Orleans. Experience legendary artists alongside emerging talents in an unforgettable outdoor setting. Food, drinks, and incredible music await you.",
+      "category": "Music",
+      "date": "2026-06-20",
+      "time": "04:00 PM",
+      "location": "New Orleans, LA",
+      "venue": "City Park Amphitheater",
+      "image": "https://picsum.photos/seed/jazz/800/400",
+      "organizerName": "NOLA Music Foundation",
+      "organizerEmail": "info@nolamusic.com",
+      "ticketTypes": [
+        {
+          "id": "t3",
+          "name": "Day Pass",
+          "price": 45,
+          "available": 500
+        },
+        {
+          "id": "t4",
+          "name": "Weekend Pass",
+          "price": 110,
+          "available": 200
+        },
+        {
+          "id": "t5",
+          "name": "VIP Weekend",
+          "price": 350,
+          "available": 30
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "title": "City Marathon 2026",
+      "description": "Join thousands of runners from around the world for this iconic 26.2-mile race through the city's most scenic landmarks. All fitness levels welcome — choose from full marathon, half marathon, or 5K fun run. Every finisher gets a medal!",
+      "category": "Sports",
+      "date": "2026-08-03",
+      "time": "06:00 AM",
+      "location": "Chicago, IL",
+      "venue": "Grant Park Start Line",
+      "image": "https://picsum.photos/seed/marathon/800/400",
+      "organizerName": "Chicago Sports Association",
+      "organizerEmail": "run@chicagosports.org",
+      "ticketTypes": [
+        {
+          "id": "t6",
+          "name": "5K Entry",
+          "price": 0,
+          "available": 1000
+        },
+        {
+          "id": "t7",
+          "name": "Half Marathon",
+          "price": 65,
+          "available": 300
+        },
+        {
+          "id": "t8",
+          "name": "Full Marathon",
+          "price": 95,
+          "available": 150
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "title": "Modern Art Showcase",
+      "description": "A curated exhibition featuring over 120 contemporary artists from 30 countries. Explore immersive installations, digital art, sculpture, and painting that push boundaries and challenge perceptions. Guided tours available daily.",
+      "category": "Arts",
+      "date": "2026-09-10",
+      "time": "10:00 AM",
+      "location": "New York, NY",
+      "venue": "MoMA Exhibition Hall",
+      "image": "https://picsum.photos/seed/art/800/400",
+      "organizerName": "Contemporary Arts Collective",
+      "organizerEmail": "hello@artcollective.nyc",
+      "ticketTypes": [
+        {
+          "id": "t9",
+          "name": "General Admission",
+          "price": 25,
+          "available": 400
+        },
+        {
+          "id": "t10",
+          "name": "Premium (incl. guided tour)",
+          "price": 60,
+          "available": 50
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "title": "Cloud & DevOps Summit",
+      "description": "Two days packed with expert talks, live demos, and workshops covering Kubernetes, AWS, CI/CD pipelines, and infrastructure-as-code. Connect with DevOps engineers and cloud architects shaping the future of software delivery.",
+      "category": "Technology",
+      "date": "2026-06-28",
+      "time": "08:30 AM",
+      "location": "Austin, TX",
+      "venue": "Austin Convention Center",
+      "image": "https://picsum.photos/seed/cloud/800/400",
+      "organizerName": "DevOps Global",
+      "organizerEmail": "summit@devopsglobal.io",
+      "ticketTypes": [
+        {
+          "id": "t11",
+          "name": "Standard",
+          "price": 149,
+          "available": 250
+        },
+        {
+          "id": "t12",
+          "name": "Workshop Bundle",
+          "price": 399,
+          "available": 60
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "title": "Indie Film Festival",
+      "description": "Celebrating independent cinema with over 80 screenings, filmmaker Q&As, and industry panels. Discover the next wave of storytelling talent from across the globe. Awards ceremony on the closing night.",
+      "category": "Arts",
+      "date": "2026-10-05",
+      "time": "12:00 PM",
+      "location": "Los Angeles, CA",
+      "venue": "The Landmark Theatre",
+      "image": "https://picsum.photos/seed/film/800/400",
+      "organizerName": "Indie Screen Foundation",
+      "organizerEmail": "press@indiescreen.org",
+      "ticketTypes": [
+        {
+          "id": "t13",
+          "name": "Single Screening",
+          "price": 18,
+          "available": 200
+        },
+        {
+          "id": "t14",
+          "name": "Festival Pass",
+          "price": 85,
+          "available": 80
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "title": "Community Yoga Day",
+      "description": "A free, all-levels outdoor yoga session in the park. Bring your mat and join the community for a morning of mindfulness, movement, and connection. Instructors from three local studios will lead different sessions.",
+      "category": "Sports",
+      "date": "2026-06-14",
+      "time": "08:00 AM",
+      "location": "Seattle, WA",
+      "venue": "Discovery Park",
+      "image": "https://picsum.photos/seed/yoga/800/400",
+      "organizerName": "Seattle Wellness Collective",
+      "organizerEmail": "yoga@seattlewellness.com",
+      "ticketTypes": [
+        {
+          "id": "t15",
+          "name": "Free Entry",
+          "price": 0,
+          "available": 300
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "title": "Electronic Music Night",
+      "description": "An immersive night of electronic music featuring top DJs from Berlin, Amsterdam, and New York. State-of-the-art sound system, stunning light shows, and an intimate warehouse venue for an unforgettable experience.",
+      "category": "Music",
+      "date": "2026-07-22",
+      "time": "09:00 PM",
+      "location": "Brooklyn, NY",
+      "venue": "Warehouse 84",
+      "image": "https://picsum.photos/seed/electronic/800/400",
+      "organizerName": "Sound Collective NYC",
+      "organizerEmail": "info@soundcollective.nyc",
+      "ticketTypes": [
+        {
+          "id": "t16",
+          "name": "General",
+          "price": 35,
+          "available": 400
+        },
+        {
+          "id": "t17",
+          "name": "Early Bird",
+          "price": 25,
+          "available": 50
+        }
+      ]
+    }
+  ],
+  "bookings": [
+    {
+      "id": "b1",
+      "userId": "user1",
+      "eventId": "1",
+      "eventTitle": "React Conference 2026",
+      "eventDate": "2026-07-15",
+      "tickets": [
+        {
+          "type": "General",
+          "quantity": 2,
+          "price": 99
+        }
+      ],
+      "attendees": [
+        {
+          "name": "John Doe",
+          "email": "john@example.com",
+          "phone": "1234567890"
+        }
+      ],
+      "totalAmount": 198,
+      "status": "confirmed",
+      "bookingDate": "2026-02-01",
+      "referenceNumber": "BK123456"
+    },
+    {
+      "id": "1780084341492",
+      "userId": "user1",
+      "eventId": "2",
+      "eventTitle": "Jazz & Blues Festival",
+      "eventDate": "2026-06-20",
+      "tickets": [
+        {
+          "type": "Weekend Pass",
+          "quantity": 1,
+          "price": 110
+        }
+      ],
+      "attendees": [
+        {
+          "name": "Sepideh Nasiri",
+          "email": "sepideh.nasiri@gmail.com",
+          "phone": "4378304031"
+        }
+      ],
+      "totalAmount": 110,
+      "status": "confirmed",
+      "bookingDate": "2026-05-29",
+      "referenceNumber": "BKREIW60"
+    }
+  ]
+}
