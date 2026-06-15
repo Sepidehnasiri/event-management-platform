@@ -274,5 +274,25 @@
       "bookingDate": "2026-05-29",
       "referenceNumber": "BKREIW60"
     }
+  ],
+  "users": [
+    {
+      "id": "user1",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "preferences": {
+        "theme": "dark"
+      },
+      "favoriteEvents": ["1", "3"]
+    },
+    {
+      "id": "user2",
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "preferences": {
+        "theme": "light"
+      },
+      "favoriteEvents": ["2", "4"]
+    }
   ]
 }
