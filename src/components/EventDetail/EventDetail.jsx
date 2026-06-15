@@ -1,26 +1,79 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../../hooks/useApi';
+import { Suspense } from 'react';
+import { useParams, useNavigate, useLoaderData, Await, useRouteLoaderData } from 'react-router-dom';
+import { useEventDetail } from '../../hooks/useEvents';
 import { useUser } from '../../contexts/UserContext';
 import styles from './EventDetail.module.css';
 
-export default function EventDetail() {
+function StarRating({ rating }) {
+  return (
+    <span style={{ color: '#f5a623', letterSpacing: '2px' }}>
+      {'★'.repeat(rating)}
+      <span style={{ color: 'var(--border)' }}>{'★'.repeat(5 - rating)}</span>
+    </span>
+  );
+}
+
+function ReviewsSkeleton() {
+  return (
+    <div>
+      {[...Array(2)].map((_, i) => (
+        <div key={i} style={{
+          background: 'var(--surface, var(--bg-card))',
+          borderRadius: 'var(--radius, 8px)',
+          padding: '1rem',
+          marginBottom: '0.75rem',
+          height: '80px',
+          animation: 'pulse 1.5s ease-in-out infinite',
+          animationDelay: `${i * 0.1}s`,
+        }} />
+      ))}
+    </div>
+  );
+}
+
+function Reviews({ reviews }) {
+  if (!reviews.length) {
+    return (
+      <p style={{ color: 'var(--text-secondary)' }}>
+        No reviews yet. Be the first to review this event!
+      </p>
+    );
+  }
+  return (
+    <div>
+      {reviews.map(r => (
+        <div key={r.id} style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-sm, 8px)',
+          padding: '1rem 1.25rem',
+          marginBottom: '0.75rem',
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+            <strong style={{ color: 'var(--text-primary)' }}>{r.author}</strong>
+            <StarRating rating={r.rating} />
+          </div>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>{r.comment}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EventDetailContent() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isFavorite, toggleFavorite } = useUser();
-  const [event, setEvent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const { data: event, isLoading, error } = useEventDetail(id);
 
-  useEffect(() => {
-    setLoading(true);
-    api.getEvent(id)
-      .then(setEvent)
-      .catch(() => setError('Event not found.'))
-      .finally(() => setLoading(false));
-  }, [id]);
+  // Deferred data from the route loader
+  const loaderData = useLoaderData();
 
-  if (loading) return (
+  // Access parent route data via useRouteLoaderData
+  const rootData = useRouteLoaderData('root');
+  const currentUser = rootData?.user;
+
+  if (isLoading) return (
     <main className={styles.page}>
       <div className="container">
         <div className={styles.skeleton} />
@@ -33,8 +86,8 @@ export default function EventDetail() {
       <div className="container">
         <div className={styles.error}>
           <h2>Event Not Found</h2>
-          <p>{error}</p>
-          <button onClick={() => navigate('/events')} className={styles.backBtn}>← Back to Events</button>
+          <p>The event you're looking for doesn't exist.</p>
+          <button onClick={() => navigate('/')} className={styles.backBtn}>← Back to Events</button>
         </div>
       </div>
     </main>
@@ -90,12 +143,25 @@ export default function EventDetail() {
               </div>
             </div>
 
+            {currentUser && (
+              <div style={{
+                background: 'var(--accent-light)',
+                border: '1px solid var(--accent)',
+                borderRadius: 'var(--radius-sm, 8px)',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.5rem',
+                fontSize: '0.875rem',
+                color: 'var(--text-secondary)',
+              }}>
+                Browsing as <strong style={{ color: 'var(--text-primary)' }}>{currentUser.name}</strong>
+              </div>
+            )}
+
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>About this event</h2>
               <p className={styles.description}>{event.description}</p>
             </section>
 
-            {/* Ticket types */}
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Ticket Options</h2>
               <div className={styles.tickets}>
@@ -112,14 +178,27 @@ export default function EventDetail() {
                 ))}
               </div>
             </section>
+
+            {/* Deferred reviews — streamed after main content */}
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Reviews</h2>
+              {loaderData?.reviews ? (
+                <Suspense fallback={<ReviewsSkeleton />}>
+                  <Await resolve={loaderData.reviews}>
+                    {(reviews) => <Reviews reviews={reviews} />}
+                  </Await>
+                </Suspense>
+              ) : (
+                <ReviewsSkeleton />
+              )}
+            </section>
           </div>
 
-          {/* Sidebar */}
           <aside className={styles.sidebar}>
             <div className={styles.stickyBox}>
               <button
                 className={styles.bookBtn}
-                onClick={() => navigate(`/events/${event.id}/book`)}
+                onClick={() => navigate(`/book/${event.id}`)}
               >
                 Book Tickets
               </button>
@@ -138,4 +217,8 @@ export default function EventDetail() {
       </div>
     </main>
   );
+}
+
+export default function EventDetail() {
+  return <EventDetailContent />;
 }

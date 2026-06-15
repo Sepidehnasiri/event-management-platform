@@ -1,31 +1,52 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Suspense } from 'react';
+import { Outlet, useNavigation } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { UserProvider } from './contexts/UserContext';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { Provider } from 'react-redux';
 import Navbar from './components/Navbar/Navbar';
 import Notification from './components/Common/Notification';
-import Home from './pages/Home';
-import EventList from './components/EventList/EventList';
-import EventDetail from './components/EventDetail/EventDetail';
-import BookingFlow from './components/BookingFlow/BookingFlow';
-import MyBookings from './components/MyBookings/MyBookings';
+import queryClient from './services/queryClient';
+import store from './store';
+
+function NavigationBar() {
+  const navigation = useNavigation();
+  if (navigation.state !== 'loading') return null;
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      height: '3px',
+      background: 'var(--primary)',
+      zIndex: 9999,
+      animation: 'navProgress 1.2s ease-in-out infinite',
+    }} />
+  );
+}
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <UserProvider>
-        <BrowserRouter>
-          <Navbar />
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/events" element={<EventList />} />
-            <Route path="/events/:id" element={<EventDetail />} />
-            <Route path="/events/:id/book" element={<BookingFlow />} />
-            <Route path="/my-bookings" element={<MyBookings />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-          <Notification />
-        </BrowserRouter>
-      </UserProvider>
-    </ThemeProvider>
+    <Provider store={store}>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <UserProvider>
+            <NavigationBar />
+            <Navbar />
+            <main style={{ minHeight: 'calc(100vh - 60px)' }}>
+              <Suspense fallback={
+                <div style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                  Loading...
+                </div>
+              }>
+                <Outlet />
+              </Suspense>
+            </main>
+            <Notification />
+          </UserProvider>
+        </ThemeProvider>
+      </QueryClientProvider>
+    </Provider>
   );
 }

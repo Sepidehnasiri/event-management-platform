@@ -1,14 +1,16 @@
-import { useReducer, useState, useEffect } from 'react';
+import { useReducer, useState, useOptimistic, useId, startTransition } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { api } from '../../hooks/useApi';
+import { useEventDetail } from '../../hooks/useEvents';
 import { useUser } from '../../contexts/UserContext';
+import { bookingsAPI } from '../../services/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import styles from './BookingFlow.module.css';
 
 // ── Reducer ──────────────────────────────────────────────────────────────────
 const initialState = {
   step: 1,
-  selectedTickets: {},   // { ticketId: quantity }
-  attendees: [],         // [{ name, email, phone }]
+  selectedTickets: {},
+  attendees: [],
   errors: {},
 };
 
@@ -17,10 +19,7 @@ function reducer(state, action) {
     case 'SET_TICKET_QTY':
       return {
         ...state,
-        selectedTickets: {
-          ...state.selectedTickets,
-          [action.ticketId]: action.qty,
-        },
+        selectedTickets: { ...state.selectedTickets, [action.ticketId]: action.qty },
       };
     case 'SET_ATTENDEES':
       return { ...state, attendees: action.attendees };
@@ -43,7 +42,7 @@ function genRef() {
 function validateAttendees(attendees) {
   const errors = {};
   attendees.forEach((a, i) => {
-    if (!a.name?.trim()) errors[`${i}_name`] = 'Name is required';
+    if (!a.name?.trim())  errors[`${i}_name`]  = 'Name is required';
     if (!a.email?.trim()) errors[`${i}_email`] = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email))
       errors[`${i}_email`] = 'Invalid email address';
@@ -56,41 +55,41 @@ function validateAttendees(attendees) {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function BookingFlow() {
-  const { id } = useParams();
+  const { eventId } = useParams();
   const navigate = useNavigate();
   const { showNotification } = useUser();
-  const [event, setEvent] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+
   const [booking, setBooking] = useState(null);
+  // useOptimistic — shows a pending booking immediately while the mutation runs
+  const [optimisticBooking, addOptimisticBooking] = useOptimistic(booking);
+
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  useEffect(() => {
-    api.getEvent(id)
-      .then(setEvent)
-      .catch(() => navigate('/events'))
-      .finally(() => setLoading(false));
-  }, [id, navigate]);
+  // useId for accessible form label/input associations
+  const attendeeFieldId = useId();
 
-  // Derive total
-  const selectedTicketObjects = event?.ticketTypes?.filter(t =>
-    state.selectedTickets[t.id] > 0
-  ) || [];
+  const { data: event, isLoading, error } = useEventDetail(eventId);
 
+  const createBookingMutation = useMutation({
+    mutationFn: (data) => bookingsAPI.create(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bookings'] });
+    },
+  });
+
+  const selectedTicketObjects = event?.ticketTypes?.filter(t => state.selectedTickets[t.id] > 0) || [];
   const totalQty = Object.values(state.selectedTickets).reduce((s, q) => s + q, 0);
-
   const totalAmount = event?.ticketTypes?.reduce((sum, t) => {
-    const qty = state.selectedTickets[t.id] || 0;
-    return sum + qty * t.price;
+    return sum + (state.selectedTickets[t.id] || 0) * t.price;
   }, 0) || 0;
 
-  // Step 1: validate at least 1 ticket
+  // Step 1: must select at least one ticket
   const handleStep1Next = () => {
     if (totalQty === 0) {
       dispatch({ type: 'SET_ERRORS', errors: { tickets: 'Please select at least one ticket.' } });
       return;
     }
-    // Build attendee slots
     const slots = Array.from({ length: totalQty }, (_, i) =>
       state.attendees[i] || { name: '', email: '', phone: '' }
     );
@@ -98,7 +97,7 @@ export default function BookingFlow() {
     dispatch({ type: 'NEXT_STEP' });
   };
 
-  // Step 2: validate attendees
+  // Step 2: validate attendee fields
   const handleStep2Next = () => {
     const errors = validateAttendees(state.attendees);
     if (Object.keys(errors).length > 0) {
@@ -113,38 +112,58 @@ export default function BookingFlow() {
     dispatch({ type: 'SET_ATTENDEES', attendees: updated });
   };
 
-  // Submit
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    try {
-      const newBooking = {
-        id: Date.now().toString(),
-        userId: 'user1',
-        eventId: event.id,
-        eventTitle: event.title,
-        eventDate: event.date,
-        tickets: selectedTicketObjects.map(t => ({
-          type: t.name, quantity: state.selectedTickets[t.id], price: t.price,
-        })),
-        attendees: state.attendees,
-        totalAmount,
-        status: 'confirmed',
-        bookingDate: new Date().toISOString().slice(0, 10),
-        referenceNumber: genRef(),
-      };
-      const result = await api.createBooking(newBooking);
-      setBooking(result);
+  // Step 3 → 4: optimistic confirmation, then actual mutation
+  const handleSubmit = () => {
+    const newBooking = {
+      id: Date.now().toString(),
+      userId: 'user1',
+      eventId: event.id,
+      eventTitle: event.title,
+      eventDate: event.date,
+      tickets: selectedTicketObjects.map(t => ({
+        type: t.name,
+        quantity: state.selectedTickets[t.id],
+        price: t.price,
+      })),
+      attendees: state.attendees,
+      totalAmount,
+      status: 'confirmed',
+      bookingDate: new Date().toISOString().slice(0, 10),
+      referenceNumber: genRef(),
+    };
+
+    startTransition(async () => {
+      // Show step 4 instantly with optimistic booking data
+      addOptimisticBooking(newBooking);
       dispatch({ type: 'NEXT_STEP' });
-      showNotification('Booking confirmed! 🎉');
-    } catch {
-      showNotification('Failed to confirm booking. Please try again.', 'error');
-    } finally {
-      setSubmitting(false);
-    }
+
+      try {
+        const result = await createBookingMutation.mutateAsync(newBooking);
+        setBooking(result.data || result);
+        showNotification('Booking confirmed!');
+      } catch {
+        // Rollback to step 3 so the user can retry
+        dispatch({ type: 'PREV_STEP' });
+        showNotification('Failed to confirm booking. Please try again.', 'error');
+      }
+    });
   };
 
-  if (loading) return (
-    <main className={styles.page}><div className="container"><div className={styles.skeleton} /></div></main>
+  if (isLoading) return (
+    <main className={styles.page}>
+      <div className="container"><div className={styles.skeleton} /></div>
+    </main>
+  );
+
+  if (error || !event) return (
+    <main className={styles.page}>
+      <div className="container">
+        <div className={styles.error}>
+          <h2>Event Not Found</h2>
+          <button onClick={() => navigate('/')} className={styles.backBtn}>← Back</button>
+        </div>
+      </div>
+    </main>
   );
 
   return (
@@ -153,11 +172,14 @@ export default function BookingFlow() {
         <button className={styles.backLink} onClick={() => navigate(-1)}>← Back to event</button>
 
         <div className={styles.layout}>
-          {/* Progress */}
+          {/* Progress indicator */}
           {state.step < 4 && (
             <div className={styles.progress}>
               {['Select Tickets', 'Attendee Details', 'Confirmation'].map((label, i) => (
-                <div key={i} className={`${styles.step} ${state.step === i + 1 ? styles.stepActive : ''} ${state.step > i + 1 ? styles.stepDone : ''}`}>
+                <div
+                  key={i}
+                  className={`${styles.step} ${state.step === i + 1 ? styles.stepActive : ''} ${state.step > i + 1 ? styles.stepDone : ''}`}
+                >
                   <div className={styles.stepNum}>{state.step > i + 1 ? '✓' : i + 1}</div>
                   <span className={styles.stepLabel}>{label}</span>
                   {i < 2 && <div className={styles.stepLine} />}
@@ -185,17 +207,31 @@ export default function BookingFlow() {
                         <div className={styles.ticketPrice}>
                           {ticket.price === 0 ? 'Free' : `$${ticket.price} / person`}
                         </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                          {ticket.available} available
+                        </div>
                       </div>
                       <div className={styles.qtyControl}>
                         <button
                           className={styles.qtyBtn}
-                          onClick={() => dispatch({ type: 'SET_TICKET_QTY', ticketId: ticket.id, qty: Math.max(0, (state.selectedTickets[ticket.id] || 0) - 1) })}
+                          onClick={() => dispatch({
+                            type: 'SET_TICKET_QTY',
+                            ticketId: ticket.id,
+                            qty: Math.max(0, (state.selectedTickets[ticket.id] || 0) - 1),
+                          })}
                           disabled={(state.selectedTickets[ticket.id] || 0) === 0}
+                          aria-label={`Decrease ${ticket.name} quantity`}
                         >−</button>
                         <span className={styles.qty}>{state.selectedTickets[ticket.id] || 0}</span>
                         <button
                           className={styles.qtyBtn}
-                          onClick={() => dispatch({ type: 'SET_TICKET_QTY', ticketId: ticket.id, qty: Math.min(ticket.available, (state.selectedTickets[ticket.id] || 0) + 1) })}
+                          onClick={() => dispatch({
+                            type: 'SET_TICKET_QTY',
+                            ticketId: ticket.id,
+                            qty: Math.min(ticket.available, (state.selectedTickets[ticket.id] || 0) + 1),
+                          })}
+                          disabled={(state.selectedTickets[ticket.id] || 0) >= ticket.available}
+                          aria-label={`Increase ${ticket.name} quantity`}
                         >+</button>
                       </div>
                     </div>
@@ -227,45 +263,76 @@ export default function BookingFlow() {
                   <div key={i} className={styles.attendeeBlock}>
                     <h4 className={styles.attendeeTitle}>Attendee {i + 1}</h4>
                     <div className={styles.fieldGrid}>
+                      {/* useId ensures label htmlFor matches input id for accessibility */}
                       <div className={styles.field}>
-                        <label className={styles.label}>Full Name *</label>
+                        <label htmlFor={`${attendeeFieldId}-name-${i}`} className={styles.label}>
+                          Full Name *
+                        </label>
                         <input
+                          id={`${attendeeFieldId}-name-${i}`}
                           className={`${styles.input} ${state.errors[`${i}_name`] ? styles.inputError : ''}`}
                           placeholder="John Doe"
                           value={attendee.name}
                           onChange={e => updateAttendee(i, 'name', e.target.value)}
+                          aria-describedby={state.errors[`${i}_name`] ? `${attendeeFieldId}-name-err-${i}` : undefined}
                         />
-                        {state.errors[`${i}_name`] && <span className={styles.fieldError}>{state.errors[`${i}_name`]}</span>}
+                        {state.errors[`${i}_name`] && (
+                          <span id={`${attendeeFieldId}-name-err-${i}`} className={styles.fieldError} role="alert">
+                            {state.errors[`${i}_name`]}
+                          </span>
+                        )}
                       </div>
+
                       <div className={styles.field}>
-                        <label className={styles.label}>Email *</label>
+                        <label htmlFor={`${attendeeFieldId}-email-${i}`} className={styles.label}>
+                          Email *
+                        </label>
                         <input
-                          className={`${styles.input} ${state.errors[`${i}_email`] ? styles.inputError : ''}`}
+                          id={`${attendeeFieldId}-email-${i}`}
                           type="email"
+                          className={`${styles.input} ${state.errors[`${i}_email`] ? styles.inputError : ''}`}
                           placeholder="john@example.com"
                           value={attendee.email}
                           onChange={e => updateAttendee(i, 'email', e.target.value)}
+                          aria-describedby={state.errors[`${i}_email`] ? `${attendeeFieldId}-email-err-${i}` : undefined}
                         />
-                        {state.errors[`${i}_email`] && <span className={styles.fieldError}>{state.errors[`${i}_email`]}</span>}
+                        {state.errors[`${i}_email`] && (
+                          <span id={`${attendeeFieldId}-email-err-${i}`} className={styles.fieldError} role="alert">
+                            {state.errors[`${i}_email`]}
+                          </span>
+                        )}
                       </div>
+
                       <div className={styles.field}>
-                        <label className={styles.label}>Phone *</label>
+                        <label htmlFor={`${attendeeFieldId}-phone-${i}`} className={styles.label}>
+                          Phone *
+                        </label>
                         <input
-                          className={`${styles.input} ${state.errors[`${i}_phone`] ? styles.inputError : ''}`}
+                          id={`${attendeeFieldId}-phone-${i}`}
                           type="tel"
+                          className={`${styles.input} ${state.errors[`${i}_phone`] ? styles.inputError : ''}`}
                           placeholder="1234567890"
                           value={attendee.phone}
                           onChange={e => updateAttendee(i, 'phone', e.target.value)}
+                          aria-describedby={state.errors[`${i}_phone`] ? `${attendeeFieldId}-phone-err-${i}` : undefined}
                         />
-                        {state.errors[`${i}_phone`] && <span className={styles.fieldError}>{state.errors[`${i}_phone`]}</span>}
+                        {state.errors[`${i}_phone`] && (
+                          <span id={`${attendeeFieldId}-phone-err-${i}`} className={styles.fieldError} role="alert">
+                            {state.errors[`${i}_phone`]}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
 
                 <div className={styles.actions}>
-                  <button className={styles.btnSecondary} onClick={() => dispatch({ type: 'PREV_STEP' })}>← Back</button>
-                  <button className={styles.btnPrimary} onClick={handleStep2Next}>Review Booking →</button>
+                  <button className={styles.btnSecondary} onClick={() => dispatch({ type: 'PREV_STEP' })}>
+                    ← Back
+                  </button>
+                  <button className={styles.btnPrimary} onClick={handleStep2Next}>
+                    Review Booking →
+                  </button>
                 </div>
               </div>
             )}
@@ -317,26 +384,35 @@ export default function BookingFlow() {
                 </div>
 
                 <div className={styles.actions}>
-                  <button className={styles.btnSecondary} onClick={() => dispatch({ type: 'PREV_STEP' })}>← Back</button>
+                  <button className={styles.btnSecondary} onClick={() => dispatch({ type: 'PREV_STEP' })}>
+                    ← Back
+                  </button>
                   <button
                     className={styles.btnPrimary}
                     onClick={handleSubmit}
-                    disabled={submitting}
+                    disabled={createBookingMutation.isPending}
                   >
-                    {submitting ? 'Confirming…' : 'Confirm Booking'}
+                    {createBookingMutation.isPending ? 'Confirming…' : 'Confirm Booking'}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* ── STEP 4: Success ── */}
-            {state.step === 4 && booking && (
+            {/* ── STEP 4: Success (shows optimistic data immediately) ── */}
+            {state.step === 4 && optimisticBooking && (
               <div className={styles.success}>
                 <div className={styles.successIcon}>✓</div>
                 <h2 className={styles.successTitle}>Booking Confirmed!</h2>
                 <p className={styles.successSub}>Your booking reference number is</p>
-                <div className={styles.refNumber}>{booking.referenceNumber}</div>
-                <p className={styles.successNote}>A confirmation has been sent to your email address.</p>
+                <div className={styles.refNumber}>{optimisticBooking.referenceNumber}</div>
+                <p className={styles.successNote}>
+                  A confirmation has been sent to your email address.
+                </p>
+                {createBookingMutation.isPending && (
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
+                    Saving your booking…
+                  </p>
+                )}
                 <div className={styles.successActions}>
                   <button className={styles.btnPrimary} onClick={() => navigate('/my-bookings')}>
                     View My Bookings

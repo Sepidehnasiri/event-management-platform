@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useDeferredValue, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import EventCard from '../EventCard/EventCard';
-import { api } from '../../hooks/useApi';
+import { useEvents } from '../../hooks/useEvents';
 import styles from './EventList.module.css';
 
 const CATEGORIES = ['All', 'Technology', 'Music', 'Sports', 'Arts'];
@@ -22,9 +23,7 @@ function isThisMonth(dateStr) {
 }
 
 export default function EventList() {
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All');
   const [dateFilter, setDateFilter] = useState('All');
@@ -32,28 +31,19 @@ export default function EventList() {
   const [sort, setSort] = useState('date-asc');
   const searchRef = useRef(null);
 
-  // Auto-focus search input (useRef demo)
+  // Use deferredValue for non-blocking search updates
+  const deferredSearch = useDeferredValue(search);
+
+  // Auto-focus search input
   useEffect(() => {
     searchRef.current?.focus();
   }, []);
 
-  const fetchEvents = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await api.getEvents({ category, search });
-      setEvents(data);
-    } catch (err) {
-      setError('Could not load events. Make sure json-server is running on port 3001.');
-    } finally {
-      setLoading(false);
-    }
-  }, [category, search]);
-
-  useEffect(() => {
-    const timer = setTimeout(fetchEvents, 300);
-    return () => clearTimeout(timer);
-  }, [fetchEvents]);
+  // Fetch events with TanStack Query
+  const { data: events = [], isLoading, error, refetch } = useEvents({
+    search: deferredSearch,
+    category: category !== 'All' ? category : undefined,
+  });
 
   const filtered = events
     .filter(e => {
@@ -161,14 +151,14 @@ export default function EventList() {
         </div>
 
         {/* Results count */}
-        {!loading && !error && (
+        {!isLoading && !error && (
           <p className={styles.resultCount}>
             {filtered.length === 0 ? 'No events found' : `${filtered.length} event${filtered.length !== 1 ? 's' : ''} found`}
           </p>
         )}
 
         {/* States */}
-        {loading && (
+        {isLoading && (
           <div className={styles.loadingGrid}>
             {[...Array(6)].map((_, i) => (
               <div key={i} className={styles.skeleton} style={{ animationDelay: `${i * 0.08}s` }} />
@@ -181,13 +171,13 @@ export default function EventList() {
             <span className={styles.errorIcon}>⚠</span>
             <div>
               <strong>Unable to load events</strong>
-              <p>{error}</p>
+              <p>Make sure JSON Server is running on port 3001</p>
             </div>
-            <button className={styles.retryBtn} onClick={fetchEvents}>Retry</button>
+            <button className={styles.retryBtn} onClick={() => refetch()}>Retry</button>
           </div>
         )}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!isLoading && !error && filtered.length === 0 && (
           <div className={styles.empty}>
             <span className={styles.emptyIcon}>◎</span>
             <h3>No events found</h3>
@@ -196,7 +186,7 @@ export default function EventList() {
           </div>
         )}
 
-        {!loading && !error && filtered.length > 0 && (
+        {!isLoading && !error && filtered.length > 0 && (
           <div className={styles.grid}>
             {filtered.map((event, i) => (
               <div key={event.id} style={{ animationDelay: `${i * 0.06}s` }}>
